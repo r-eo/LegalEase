@@ -1,0 +1,553 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  ScrollView, 
+  TouchableOpacity, 
+  TextInput, 
+  Modal, 
+  Alert,
+  ActivityIndicator 
+} from 'react-native';
+// Import our custom components and services
+import Layout from './layout';
+import AIService, { SUPPORTED_LANGUAGES, isApiConfigured } from './apiservice';
+
+// Sample data for the app
+const USER_PROFILES = [
+  { id: 1, name: 'Students', icon: '🎓', color: '#3B82F6', description: 'Legal guidance for students' },
+  { id: 2, name: 'Professionals', icon: '💼', color: '#10B981', description: 'Workplace and business law' },
+  { id: 3, name: 'Families', icon: '👨‍👩‍👧‍👦', color: '#F59E0B', description: 'Family and personal legal matters' },
+  { id: 4, name: 'Seniors', icon: '👴', color: '#8B5CF6', description: 'Rights and benefits for elderly' },
+  { id: 5, name: 'Entrepreneurs', icon: '🚀', color: '#EF4444', description: 'Business startup legal guidance' },
+  { id: 6, name: 'Tenants', icon: '🏠', color: '#06B6D4', description: 'Rental and housing rights' }
+];
+
+const LEGAL_CATEGORIES = [
+  { id: 1, title: 'Consumer Rights', icon: '🛒', color: '#3B82F6', queries: 12 },
+  { id: 2, title: 'Employment Law', icon: '💼', color: '#10B981', queries: 8 },
+  { id: 3, title: 'Property Rights', icon: '🏘️', color: '#F59E0B', queries: 15 },
+  { id: 4, title: 'Family Law', icon: '👨‍👩‍👧‍👦', color: '#8B5CF6', queries: 6 },
+  { id: 5, title: 'Criminal Law', icon: '⚖️', color: '#EF4444', queries: 4 },
+  { id: 6, title: 'Civil Rights', icon: '✊', color: '#06B6D4', queries: 9 }
+];
+
+const QUICK_ACTIONS = [
+  { id: 1, title: 'Ask AI Assistant', icon: '🤖', action: 'askAI' },
+  { id: 2, title: 'Find Legal Aid', icon: '🆘', action: 'findAid' },
+  { id: 3, title: 'Download Forms', icon: '📄', action: 'downloadForms' },
+  { id: 4, title: 'Book Consultation', icon: '📅', action: 'bookConsult' }
+];
+
+const HomeScreen = ({ navigation }) => {
+  const [selectedLanguage, setSelectedLanguage] = useState(SUPPORTED_LANGUAGES[0]);
+  const [askAIModalVisible, setAskAIModalVisible] = useState(false);
+  const [userQuery, setUserQuery] = useState('');
+  const [aiResponse, setAiResponse] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [apiConfigured, setApiConfigured] = useState(false);
+
+  useEffect(() => {
+    // Check API configuration on component mount
+    checkAPIConfiguration();
+  }, []);
+
+  const checkAPIConfiguration = async () => {
+    try {
+      const configStatus = isApiConfigured();
+      setApiConfigured(configStatus.hasAnyConfig);
+    } catch (error) {
+      console.error('Error checking API configuration:', error);
+    }
+  };
+
+  const handleLanguageChange = (language) => {
+    setSelectedLanguage(language);
+  };
+
+  const handleProfileSelect = (profile) => {
+    setSelectedProfile(profile);
+    // You can add navigation or other actions here
+    Alert.alert('Profile Selected', `You selected ${profile.name}. This will customize your legal guidance.`);
+  };
+
+  const handleQuickAction = (action) => {
+    switch (action) {
+      case 'askAI':
+        setAskAIModalVisible(true);
+        break;
+      case 'findAid':
+        Alert.alert('Legal Aid', 'Redirecting to legal aid resources...');
+        // navigation.navigate('LegalAid');
+        break;
+      case 'downloadForms':
+        Alert.alert('Legal Forms', 'Opening legal forms library...');
+        // navigation.navigate('LegalForms');
+        break;
+      case 'bookConsult':
+        Alert.alert('Consultation', 'Opening consultation booking...');
+        // navigation.navigate('BookConsultation');
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleAskAI = async () => {
+    if (!userQuery.trim()) {
+      Alert.alert('Error', 'Please enter your legal question.');
+      return;
+    }
+
+    setIsLoading(true);
+    setAiResponse('');
+
+    try {
+      const response = await AIService.queryAIWithTranslation(
+        userQuery, 
+        selectedLanguage.bhashiniCode
+      );
+
+      if (response.success) {
+        setAiResponse(response.data);
+        if (response.warning) {
+          Alert.alert('Note', response.warning);
+        }
+      } else {
+        Alert.alert('Error', response.error || 'Failed to get AI response');
+        setAiResponse('Sorry, I could not process your request at the moment. Please try again later.');
+      }
+    } catch (error) {
+      console.error('AI Query Error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      setAiResponse('Sorry, I could not process your request at the moment. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearAIModal = () => {
+    setUserQuery('');
+    setAiResponse('');
+    setAskAIModalVisible(false);
+  };
+
+  const getGreeting = () => {
+    const greetings = {
+      'en': 'Welcome to Legal Literacy',
+      'hi': 'कानूनी साक्षरता में आपका स्वागत है',
+      'bn': 'আইনি সাক্ষরতায় স্বাগতম',
+      'gu': 'કાનૂની સાક્ષરતામાં આપનું સ્વાગત છે',
+      'kn': 'ಕಾನೂನು ಸಾಕ್ಷರತೆಗೆ ಸ್ವಾಗತ',
+      'ml': 'നിയമ സാക്ഷരതയിലേക്ക് സ്വാഗതം',
+      'mr': 'कायदेशीर साक्षरतेमध्ये आपले स्वागत आहे',
+      'ta': 'சட்ட கல்வியறிவுக்கு வரவேற்கிறோம்',
+      'te': 'న్యాయ అక్షరాస్యతకు స్వాగతం',
+      'ur': 'قانونی خواندگی میں خوش آمدید'
+    };
+    return greetings[selectedLanguage.code] || greetings['en'];
+  };
+
+  return (
+    <Layout
+      selectedLanguage={selectedLanguage}
+      onLanguageChange={handleLanguageChange}
+      activeTab="Home"
+      navigation={navigation}
+    >
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Welcome Section */}
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeTitle}>{getGreeting()}</Text>
+          <Text style={styles.welcomeSubtitle}>
+            {selectedLanguage.code === 'en' 
+              ? 'Know your rights, understand the law'
+              : 'अपने अधिकारों को जानें, कानून को समझें'
+            }
+          </Text>
+          {!apiConfigured && (
+            <View style={styles.configWarning}>
+              <Text style={styles.configWarningText}>
+                ⚠️ AI services not configured. Some features may be limited.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* User Profiles Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {selectedLanguage.code === 'en' ? 'I am a...' : 'मैं हूँ...'}
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.profilesContainer}>
+            {USER_PROFILES.map((profile) => (
+              <TouchableOpacity
+                key={profile.id}
+                style={[
+                  styles.profileCard,
+                  { borderColor: profile.color },
+                  selectedProfile?.id === profile.id && { backgroundColor: profile.color + '20' }
+                ]}
+                onPress={() => handleProfileSelect(profile)}
+              >
+                <Text style={styles.profileIcon}>{profile.icon}</Text>
+                <Text style={styles.profileName}>{profile.name}</Text>
+                <Text style={styles.profileDescription}>{profile.description}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Quick Actions Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {selectedLanguage.code === 'en' ? 'Quick Actions' : 'त्वरित कार्य'}
+          </Text>
+          <View style={styles.quickActionsGrid}>
+            {QUICK_ACTIONS.map((action) => (
+              <TouchableOpacity
+                key={action.id}
+                style={styles.quickActionCard}
+                onPress={() => handleQuickAction(action.action)}
+              >
+                <Text style={styles.quickActionIcon}>{action.icon}</Text>
+                <Text style={styles.quickActionTitle}>{action.title}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Legal Categories Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {selectedLanguage.code === 'en' ? 'Popular Categories' : 'लोकप्रिय श्रेणियां'}
+          </Text>
+          <View style={styles.categoriesGrid}>
+            {LEGAL_CATEGORIES.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[styles.categoryCard, { borderLeftColor: category.color }]}
+                onPress={() => Alert.alert('Category', `Opening ${category.title}...`)}
+              >
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryIcon}>{category.icon}</Text>
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>{category.queries}</Text>
+                  </View>
+                </View>
+                <Text style={styles.categoryTitle}>{category.title}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* AI Assistant Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={askAIModalVisible}
+          onRequestClose={clearAIModal}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.aiModal}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>🤖 AI Legal Assistant</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={clearAIModal}
+                >
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalContent}>
+                <TextInput
+                  style={styles.queryInput}
+                  placeholder={selectedLanguage.code === 'en' 
+                    ? "Ask your legal question here..." 
+                    : "यहाँ अपना कानूनी प्रश्न पूछें..."
+                  }
+                  multiline
+                  numberOfLines={4}
+                  value={userQuery}
+                  onChangeText={setUserQuery}
+                />
+
+                <TouchableOpacity
+                  style={[styles.askButton, isLoading && styles.askButtonDisabled]}
+                  onPress={handleAskAI}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.askButtonText}>
+                      {selectedLanguage.code === 'en' ? 'Ask AI' : 'AI से पूछें'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                {aiResponse ? (
+                  <View style={styles.responseContainer}>
+                    <Text style={styles.responseTitle}>
+                      {selectedLanguage.code === 'en' ? 'AI Response:' : 'AI का उत्तर:'}
+                    </Text>
+                    <Text style={styles.responseText}>{aiResponse}</Text>
+                  </View>
+                ) : null}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+    </Layout>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+
+  // Welcome Section
+  welcomeSection: {
+    padding: 20,
+    backgroundColor: '#1E293B',
+    marginBottom: 20,
+  },
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: '#94A3B8',
+    lineHeight: 24,
+  },
+  configWarning: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+  },
+  configWarningText: {
+    color: '#FCD34D',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+
+  // Sections
+  section: {
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 16,
+  },
+
+  // User Profiles
+  profilesContainer: {
+    flexDirection: 'row',
+  },
+  profileCard: {
+    width: 140,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginRight: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  profileIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  profileName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  profileDescription: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+
+  // Quick Actions
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  quickActionCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  quickActionIcon: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  quickActionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+    textAlign: 'center',
+  },
+
+  // Categories
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  categoryCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryIcon: {
+    fontSize: 24,
+  },
+  categoryBadge: {
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  categoryBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  categoryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  aiModal: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#64748B',
+    fontWeight: 'bold',
+  },
+  modalContent: {
+    padding: 20,
+  },
+  queryInput: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+    backgroundColor: '#F8FAFC',
+  },
+  askButton: {
+    backgroundColor: '#1E293B',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  askButtonDisabled: {
+    backgroundColor: '#94A3B8',
+  },
+  askButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  responseContainer: {
+    backgroundColor: '#F1F5F9',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  responseTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  responseText: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+  },
+});
+
+export default HomeScreen;
